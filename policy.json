@@ -1,0 +1,14 @@
+{
+  "min_length": 14,
+  "strong_length": 18,
+  "min_classes": 3,
+  "banned_words": ["koflix", "kokonut", "companyname"],
+  "enabled_rules": {
+    "dictionary": true,
+    "sequences": true,
+    "repeats": true,
+    "banned": true,
+    "charset": true,
+    "length": true
+  }
+}
