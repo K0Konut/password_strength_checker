@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from getpass import getpass
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--strong-length", type=int, default=16, help="Longueur 'forte'.")
     p.add_argument("--policy", type=str, help="Chemin vers un fichier policy.json")
     p.add_argument("--explain", action="store_true", help="Affiche les détails de calcul (score/estimates).")
-    p.add_argument("--strict", action="store_true", help="Considère WARNING comme non conforme.")
+    p.add_argument("--strict", action="store_true", help="Considère WARNING comme non conforme (exit code non-zero).")
     return p
 
 

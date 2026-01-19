@@ -6,9 +6,10 @@ authors = [
     {name = "Your Name",email = "you@example.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.15"
 dependencies = [
-    "rich (>=14.2.0,<15.0.0)"
+    "rich (>=14.2.0,<15.0.0)",
+    "pyside6 (>=6.10.1,<7.0.0)"
 ]
 
 [tool.poetry]
@@ -27,6 +28,7 @@ dev = [
 
 [tool.poetry.scripts]
 psc = "password_strength_checker.cli.main:main"
+psc-ui = "password_strength_checker.ui.app:main"
 
 [tool.ruff]
 line-length = 100
