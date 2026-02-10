@@ -1,116 +1,114 @@
 # Password Strength Checker (Python)
 
+Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, un niveau, des explications et des recommandations.
 
-Un petit outil en Python qui évalue la robustesse d’un mot de passe selon plusieurs critères (longueur, diversité des caractères, motifs faibles, etc.) et renvoie un score + des recommandations.
+**Objectif**
+1. Analyser un mot de passe
+2. Calculer un score (0–100)
+3. Fournir un niveau (Faible / Moyen / Fort / Très fort)
+4. Expliquer les points forts/faibles et proposer des conseils
 
+**Fonctionnalités**
+- Score de robustesse (0 → 100)
+- Niveau de sécurité lisible
+- Détection des faiblesses courantes (longueur, diversité, répétitions, suites, mots de passe communs)
+- Conseils d’amélioration personnalisés
+- CLI avec saisie masquée par défaut
 
-## Fonctionnalités
+**Pré-requis**
+- Python 3.10+ recommandé
 
+**Installation**
+- Cloner le dépôt
+- Si un fichier `requirements.txt` existe, installer les dépendances :
 
-- ✅ Score de robustesse (0 → 100)
-- ✅ Niveau de sécurité (Faible / Moyen / Fort / Très fort)
-- ✅ Détection de points faibles courants :
-  - trop court
-  - pas de majuscules / minuscules / chiffres / symboles
-  - répétitions (ex: `aaaa`, `1111`)
-  - suites (ex: `abcd`, `1234`)
-  - mots de passe trop communs (liste optionnelle)
-- ✅ Conseils d’amélioration personnalisés
-- ✅ Mode CLI (ligne de commande)
-- (Optionnel) Export JSON des résultats
+```bash
+pip install -r requirements.txt
+```
 
+**Utilisation**
+- Lancer en mode interactif (saisie masquée) :
 
-## Prérequis
-
-
-- Python 3.10+ recommandé (3.8+ OK si tu restes simple)
-
-
-## Utilisation
-1) Lancer le checker en CLI
-
-Exemple :
-
+```bash
 python main.py
+```
 
-Tu peux aussi prévoir une option :
+- Passer un mot de passe en argument (attention à l’historique du shell) :
 
+```bash
 python main.py --password "MonMotDePasse123!"
-2) Exemple de sortie attendue
+```
 
+**Exemple de sortie**
+
+```text
 Score: 78/100
-
 Niveau: Fort
 
 Détails:
-
-✅ Longueur OK
-
-✅ Majuscules / minuscules / chiffres / symboles détectés
-
-⚠️ Évite les suites comme 1234
+- Longueur OK
+- Majuscules / minuscules / chiffres / symboles détectés
+- Éviter les suites comme 1234
 
 Conseils:
+- Ajouter 2 caractères de plus
+- Éviter les motifs simples
+```
 
-Ajouter 2 caractères de plus
+**Règles de scoring (guidelines)**
+- Longueur < 8 : score plafonné bas
+- Longueur 8–11 : acceptable
+- Longueur 12–15 : bien
+- Longueur 16+ : très bien
+- Diversité 3 catégories : bonus
+- Diversité 4 catégories : bonus maximum
+- Pénalité pour suites (`abcd`, `1234`)
+- Pénalité pour répétitions (`aaaa`, `1111`)
+- Pénalité pour mots de passe communs (si liste fournie)
+- Pénalité pour mots du dictionnaire (optionnel)
 
-Éviter les motifs simples
+**Structure du projet (suggestion)**
 
-Structure du projet (suggestion)
+```text
 password-strength-checker/
 ├─ main.py
 ├─ checker/
 │  ├─ __init__.py
-│  ├─ rules.py          # règles de scoring
-│  ├─ common.py         # détection suites, répétitions, etc.
-│  └─ models.py         # dataclasses (résultat, détails)
+│  ├─ rules.py
+│  ├─ common.py
+│  └─ models.py
 ├─ data/
-│  └─ common_passwords.txt   # optionnel
+│  └─ common_passwords.txt
 ├─ tests/
 │  └─ test_checker.py
 ├─ requirements.txt
 ├─ README.md
 └─ AGENTS.md
-Critères de scoring (exemple)
+```
 
-Longueur :
+**Sécurité et confidentialité**
+- Ne jamais logger/imprimer le mot de passe en clair dans des fichiers
+- Traiter puis oublier le mot de passe (éviter de le stocker longtemps en mémoire)
+- Ne jamais envoyer le mot de passe vers un service externe sans consentement explicite
+- Si intégration HIBP, utiliser k-anonymity et documenter clairement
 
-< 8 : gros malus
+**CLI et codes de sortie**
+- Saisie masquée par défaut via `getpass.getpass()`
+- Option `--password` autorisée mais à documenter clairement
+- Code de sortie optionnel : `0` si niveau >= Fort, `1` sinon
 
-8–11 : moyen
+**Tests**
+- Lancer les tests (si `tests/` existe) :
 
-12–15 : bien
-
-16+ : excellent
-
-Diversité :
-
-minuscules / majuscules / chiffres / symboles
-
-Pénalités :
-
-répétitions longues (aaaaaa)
-
-suites (abcd, 1234)
-
-présence dans une liste de mots de passe communs
-
-Tests
-
-Si tu utilises pytest :
-
-pip install pytest
+```bash
 pytest -q
-Améliorations possibles
+```
 
-Interface web (Flask/FastAPI) ou GUI (Tkinter)
+**Améliorations possibles**
+- Export JSON des résultats
+- Interface web ou GUI
+- Vérification HIBP (k-anonymity)
+- Générateur de mots de passe forts
 
-Vérification “haveibeenpwned” (attention aux API/clé et à la vie privée)
-
-Générateur de mots de passe forts
-
-Historique + export
-
-Licence
-
-Libre pour usage éducatif (tu peux ajouter une vraie licence : MIT, Apache-2.0, etc.)
+**Licence**
+- À définir (MIT, Apache-2.0, etc.)
