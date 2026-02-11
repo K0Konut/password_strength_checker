@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Set
+from typing import Iterable, List, Set
 
 from .common import (
     analyze_categories,
@@ -32,6 +33,56 @@ REPEAT_PENALTY_MINOR = 8
 REPEAT_PENALTY_MAJOR = 15
 COMMON_PASSWORD_PENALTY = 25
 DICTIONARY_PENALTY = 12
+
+
+@dataclass(frozen=True)
+class ScoringConfig:
+    min_length: int
+    short_cap: int
+    penalties: dict[str, int]
+
+
+PROFILE_CONFIGS: dict[str, ScoringConfig] = {
+    "standard": ScoringConfig(
+        min_length=12,
+        short_cap=40,
+        penalties={
+            "sequence": SEQUENCE_PENALTY,
+            "keyboard": KEYBOARD_PENALTY,
+            "pattern": REPEATED_SEGMENT_PENALTY,
+            "repetition_minor": REPEAT_PENALTY_MINOR,
+            "repetition_major": REPEAT_PENALTY_MAJOR,
+            "common": COMMON_PASSWORD_PENALTY,
+            "dictionary": DICTIONARY_PENALTY,
+        },
+    ),
+    "strict": ScoringConfig(
+        min_length=16,
+        short_cap=35,
+        penalties={
+            "sequence": 12,
+            "keyboard": 12,
+            "pattern": 12,
+            "repetition_minor": 10,
+            "repetition_major": 18,
+            "common": 30,
+            "dictionary": 15,
+        },
+    ),
+    "lenient": ScoringConfig(
+        min_length=10,
+        short_cap=45,
+        penalties={
+            "sequence": 8,
+            "keyboard": 8,
+            "pattern": 8,
+            "repetition_minor": 6,
+            "repetition_major": 12,
+            "common": 20,
+            "dictionary": 8,
+        },
+    ),
+}
 
 
 def _length_score(length: int) -> int:
@@ -70,17 +121,23 @@ def load_common_passwords() -> Set[str]:
     return common
 
 
-@lru_cache(maxsize=1)
-def load_dictionary_words(path: Path | None = None) -> Set[str]:
-    data_path = path or (Path(__file__).resolve().parent.parent / "data" / "dictionary_words.txt")
-    if not data_path.exists():
+def _normalize_paths(paths: Iterable[Path]) -> tuple[Path, ...]:
+    return tuple(sorted({path.resolve() for path in paths if path is not None}))
+
+
+@lru_cache(maxsize=8)
+def load_dictionary_words(paths: tuple[Path, ...]) -> Set[str]:
+    if not paths:
         return set()
 
     words: Set[str] = set()
-    for line in data_path.read_text(encoding="utf-8").splitlines():
-        value = line.strip().lower()
-        if value and not value.startswith("#"):
-            words.add(value)
+    for data_path in paths:
+        if not data_path.exists():
+            continue
+        for line in data_path.read_text(encoding="utf-8").splitlines():
+            value = line.strip().lower()
+            if value and not value.startswith("#"):
+                words.add(value)
     return {word for word in words if len(word) >= 4}
 
 
@@ -129,12 +186,15 @@ def _label_for_score(score: int) -> str:
 def evaluate_password(
     password: str,
     *,
-    min_length: int = 12,
+    min_length: int | None = None,
+    profile: str = "standard",
     use_dictionary: bool = True,
     dictionary_path: Path | None = None,
 ) -> Result:
     length = len(password)
-    min_length = max(8, min_length)
+    config = PROFILE_CONFIGS.get(profile, PROFILE_CONFIGS["standard"])
+    profile_name = profile if profile in PROFILE_CONFIGS else "standard"
+    min_length = max(8, min_length if min_length is not None else config.min_length)
     if dictionary_path is not None and not isinstance(dictionary_path, Path):
         dictionary_path = Path(dictionary_path)
     categories = analyze_categories(password)
@@ -144,7 +204,20 @@ def evaluate_password(
     repeated_segment = has_repeated_segment(password)
     repeat_len = longest_repeat(password)
     common_passwords = load_common_passwords()
-    dictionary_words = load_dictionary_words(dictionary_path) if use_dictionary else set()
+    if use_dictionary:
+        if dictionary_path is not None:
+            dictionary_paths = _normalize_paths([dictionary_path])
+        else:
+            base = Path(__file__).resolve().parent.parent / "data" / "dictionary_words.txt"
+            extended = (
+                Path(__file__).resolve().parent.parent / "data" / "dictionary_words_extended.txt"
+            )
+            dictionary_paths = _normalize_paths(
+                [base, extended] if extended.exists() else [base]
+            )
+        dictionary_words = load_dictionary_words(dictionary_paths)
+    else:
+        dictionary_words = set()
     is_common = password.lower() in common_passwords if password else False
     has_dictionary_word = _contains_dictionary_word(password, dictionary_words)
 
@@ -154,33 +227,33 @@ def evaluate_password(
     penalties: dict[str, int] = {}
 
     if sequence_found:
-        penalties["sequence"] = SEQUENCE_PENALTY
-        score -= SEQUENCE_PENALTY
+        penalties["sequence"] = config.penalties["sequence"]
+        score -= config.penalties["sequence"]
     if keyboard_sequence:
-        penalties["keyboard"] = KEYBOARD_PENALTY
-        score -= KEYBOARD_PENALTY
+        penalties["keyboard"] = config.penalties["keyboard"]
+        score -= config.penalties["keyboard"]
     if repeated_segment:
-        penalties["pattern"] = REPEATED_SEGMENT_PENALTY
-        score -= REPEATED_SEGMENT_PENALTY
+        penalties["pattern"] = config.penalties["pattern"]
+        score -= config.penalties["pattern"]
     if repeat_len >= 5:
-        penalties["repetition"] = REPEAT_PENALTY_MAJOR
-        score -= REPEAT_PENALTY_MAJOR
+        penalties["repetition"] = config.penalties["repetition_major"]
+        score -= config.penalties["repetition_major"]
     elif repeat_len >= 3:
-        penalties["repetition"] = REPEAT_PENALTY_MINOR
-        score -= REPEAT_PENALTY_MINOR
+        penalties["repetition"] = config.penalties["repetition_minor"]
+        score -= config.penalties["repetition_minor"]
     if is_common:
-        penalties["common"] = COMMON_PASSWORD_PENALTY
-        score -= COMMON_PASSWORD_PENALTY
+        penalties["common"] = config.penalties["common"]
+        score -= config.penalties["common"]
     if has_dictionary_word:
-        penalties["dictionary"] = DICTIONARY_PENALTY
-        score -= DICTIONARY_PENALTY
+        penalties["dictionary"] = config.penalties["dictionary"]
+        score -= config.penalties["dictionary"]
 
     capped = False
     cap_value: int | None = None
     cap_reason: str | None = None
     if length < 8:
         capped = True
-        cap_value = 40
+        cap_value = config.short_cap
         cap_reason = "Longueur < 8"
         score = min(score, cap_value)
 
@@ -283,6 +356,14 @@ def evaluate_password(
         cap=cap_value,
         cap_reason=cap_reason,
     )
+    metrics = {
+        "sequence_found": sequence_found,
+        "keyboard_sequence": keyboard_sequence,
+        "repeated_segment": repeated_segment,
+        "repeat_len": repeat_len,
+        "is_common": is_common,
+        "has_dictionary_word": has_dictionary_word,
+    }
 
     return Result(
         score=score,
@@ -294,4 +375,6 @@ def evaluate_password(
         category_count=category_count,
         min_length=min_length,
         score_breakdown=breakdown,
+        profile=profile_name,
+        metrics=metrics,
     )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 
 @dataclass(frozen=True)
@@ -32,3 +32,6 @@ class Result:
     category_count: int = 0
     min_length: int = 12
     score_breakdown: Optional[ScoreBreakdown] = None
+    profile: str = "standard"
+    ruleset_version: int = 2
+    metrics: Optional[Dict[str, Union[int, bool]]] = None
