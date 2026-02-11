@@ -1,0 +1,17 @@
+# Extended list (optional)
+internet
+keyboard
+security
+computer
+network
+software
+hardware
+developer
+password
+bonjour
+salut
+maison
+travail
+vacance
+voiture
+weekend
