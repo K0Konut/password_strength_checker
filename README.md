@@ -17,9 +17,11 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Profils de scoring (standard / strict / lenient)
 - Sortie JSON v2 enrichie (version, ruleset, métriques)
 - Sortie JSONL pour le mode batch
+- Sortie CSV pour analyse batch
 - Rapport exportable (texte ou markdown)
 - Mode batch (fichier de mots de passe)
 - Résumé explicatif optionnel
+- Schéma JSON v2 exportable
 - Conseils d’amélioration personnalisés
 - CLI avec saisie masquée par défaut
 
@@ -52,10 +54,13 @@ python main.py --password "MonMotDePasse123!"
 ```bash
 python main.py --min-length 16
 python main.py --profile strict
+python main.py --policy nist
 python main.py --dictionary-list ./data/dictionary_words.txt
 python main.py --no-dictionary
 python main.py --input-file ./data/passwords.txt
 python main.py --jsonl
+python main.py --csv
+python main.py --json-schema
 python main.py --report-file ./rapport.txt
 python main.py --report-format markdown --report-file ./rapport.md
 python main.py --explain
@@ -67,6 +72,7 @@ Notes :
 - Si `data/dictionary_words_extended.txt` existe, il est chargé automatiquement (en plus de `dictionary_words.txt`).
 - En mode batch, la sortie n’affiche pas les mots de passe.
 - La sortie JSON inclut `version` et `ruleset` (profil).
+- Le champ `ruleset` devient `policy:profile` quand une policy est activée.
 
 **Exemple de sortie**
 
@@ -133,6 +139,16 @@ password-strength-checker/
 
 ```bash
 pytest -q
+```
+
+**API Python**
+
+```python
+from checker import evaluate, evaluate_many, get_json_schema
+
+result = evaluate("MonMotDePasse123!")
+results = evaluate_many(["pwd1", "pwd2"], profile="strict")
+schema = get_json_schema()
 ```
 
 **Améliorations possibles**
