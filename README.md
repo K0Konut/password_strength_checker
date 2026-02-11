@@ -12,6 +12,7 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Score de robustesse (0 → 100)
 - Niveau de sécurité lisible
 - Détection des faiblesses courantes (longueur, diversité, répétitions, suites, mots de passe communs)
+- Détection optionnelle de mots du dictionnaire (via `data/dictionary_words.txt`)
 - Conseils d’amélioration personnalisés
 - CLI avec saisie masquée par défaut
 
@@ -79,6 +80,7 @@ password-strength-checker/
 │  └─ models.py
 ├─ data/
 │  └─ common_passwords.txt
+│  └─ dictionary_words.txt
 ├─ tests/
 │  └─ test_checker.py
 ├─ requirements.txt
