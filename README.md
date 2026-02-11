@@ -14,6 +14,10 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Détection des faiblesses courantes (longueur, diversité, répétitions, suites, mots de passe communs)
 - Détection des suites clavier (qwerty, azerty) et motifs répétés (abcabc)
 - Détection optionnelle de mots du dictionnaire (via `data/dictionary_words.txt`)
+- Profils de scoring (standard / strict / lenient)
+- Sortie JSON v2 enrichie (version, ruleset, métriques)
+- Mode batch (fichier de mots de passe)
+- Résumé explicatif optionnel
 - Conseils d’amélioration personnalisés
 - CLI avec saisie masquée par défaut
 
@@ -45,11 +49,19 @@ python main.py --password "MonMotDePasse123!"
 
 ```bash
 python main.py --min-length 16
+python main.py --profile strict
 python main.py --dictionary-list ./data/dictionary_words.txt
 python main.py --no-dictionary
+python main.py --input-file ./data/passwords.txt
+python main.py --explain
 python main.py --verbose
 python main.py --json
 ```
+
+Notes :
+- Si `data/dictionary_words_extended.txt` existe, il est chargé automatiquement (en plus de `dictionary_words.txt`).
+- En mode batch, la sortie n’affiche pas les mots de passe.
+- La sortie JSON inclut `version` et `ruleset` (profil).
 
 **Exemple de sortie**
 
@@ -92,6 +104,7 @@ password-strength-checker/
 ├─ data/
 │  └─ common_passwords.txt
 │  └─ dictionary_words.txt
+│  └─ dictionary_words_extended.txt (optionnel)
 ├─ tests/
 │  └─ test_checker.py
 ├─ requirements.txt
