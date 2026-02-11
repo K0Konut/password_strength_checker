@@ -12,6 +12,7 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Score de robustesse (0 → 100)
 - Niveau de sécurité lisible
 - Détection des faiblesses courantes (longueur, diversité, répétitions, suites, mots de passe communs)
+- Détection des suites clavier (qwerty, azerty) et motifs répétés (abcabc)
 - Détection optionnelle de mots du dictionnaire (via `data/dictionary_words.txt`)
 - Conseils d’amélioration personnalisés
 - CLI avec saisie masquée par défaut
@@ -38,6 +39,16 @@ python main.py
 
 ```bash
 python main.py --password "MonMotDePasse123!"
+```
+
+- Options utiles :
+
+```bash
+python main.py --min-length 16
+python main.py --dictionary-list ./data/dictionary_words.txt
+python main.py --no-dictionary
+python main.py --verbose
+python main.py --json
 ```
 
 **Exemple de sortie**
