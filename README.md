@@ -16,6 +16,8 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Détection optionnelle de mots du dictionnaire (via `data/dictionary_words.txt`)
 - Profils de scoring (standard / strict / lenient)
 - Sortie JSON v2 enrichie (version, ruleset, métriques)
+- Sortie JSONL pour le mode batch
+- Rapport exportable (texte ou markdown)
 - Mode batch (fichier de mots de passe)
 - Résumé explicatif optionnel
 - Conseils d’amélioration personnalisés
@@ -53,6 +55,9 @@ python main.py --profile strict
 python main.py --dictionary-list ./data/dictionary_words.txt
 python main.py --no-dictionary
 python main.py --input-file ./data/passwords.txt
+python main.py --jsonl
+python main.py --report-file ./rapport.txt
+python main.py --report-format markdown --report-file ./rapport.md
 python main.py --explain
 python main.py --verbose
 python main.py --json
