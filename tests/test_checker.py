@@ -45,3 +45,24 @@ def test_common_password():
 def test_dictionary_word():
     result = evaluate_password("Sunshine2024!")
     assert not _get_check(result, "dictionary").passed
+
+
+def test_keyboard_sequence():
+    result = evaluate_password("qwerty12!")
+    assert not _get_check(result, "keyboard").passed
+
+
+def test_repeated_segment():
+    result = evaluate_password("abcabc12!")
+    assert not _get_check(result, "pattern").passed
+
+
+def test_min_length_override():
+    result = evaluate_password("Aa1!Aa1!Aa1!", min_length=16)
+    assert "16" in _get_check(result, "length").message
+    assert any("16" in suggestion for suggestion in result.suggestions)
+
+
+def test_no_dictionary_check():
+    result = evaluate_password("Sunshine2024!", use_dictionary=False)
+    assert all(check.name != "dictionary" for check in result.checks)
