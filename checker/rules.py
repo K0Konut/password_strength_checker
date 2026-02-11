@@ -33,6 +33,7 @@ REPEAT_PENALTY_MINOR = 8
 REPEAT_PENALTY_MAJOR = 15
 COMMON_PASSWORD_PENALTY = 25
 DICTIONARY_PENALTY = 12
+BREACH_PENALTY = 35
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,7 @@ PROFILE_CONFIGS: dict[str, ScoringConfig] = {
             "repetition_major": REPEAT_PENALTY_MAJOR,
             "common": COMMON_PASSWORD_PENALTY,
             "dictionary": DICTIONARY_PENALTY,
+            "breach": BREACH_PENALTY,
         },
     ),
     "strict": ScoringConfig(
@@ -67,6 +69,7 @@ PROFILE_CONFIGS: dict[str, ScoringConfig] = {
             "repetition_major": 18,
             "common": 30,
             "dictionary": 15,
+            "breach": 40,
         },
     ),
     "lenient": ScoringConfig(
@@ -80,6 +83,7 @@ PROFILE_CONFIGS: dict[str, ScoringConfig] = {
             "repetition_major": 12,
             "common": 20,
             "dictionary": 8,
+            "breach": 30,
         },
     ),
 }
@@ -96,6 +100,7 @@ POLICY_CONFIGS: dict[str, ScoringConfig] = {
             "repetition_major": 10,
             "common": 35,
             "dictionary": 10,
+            "breach": 45,
         },
     ),
 }
@@ -205,6 +210,7 @@ def evaluate_password(
     min_length: int | None = None,
     profile: str = "standard",
     policy: str = "default",
+    breach_found: bool | None = None,
     use_dictionary: bool = True,
     dictionary_path: Path | None = None,
 ) -> Result:
@@ -265,6 +271,9 @@ def evaluate_password(
     if has_dictionary_word:
         penalties["dictionary"] = config.penalties["dictionary"]
         score -= config.penalties["dictionary"]
+    if breach_found is True:
+        penalties["breach"] = config.penalties["breach"]
+        score -= config.penalties["breach"]
 
     capped = False
     cap_value: int | None = None
@@ -338,6 +347,11 @@ def evaluate_password(
         else:
             checks.append(CheckResult("dictionary", True, "Pas de mots du dictionnaire évidents"))
 
+    if breach_found is True:
+        checks.append(CheckResult("breach", False, "Mot de passe compromis détecté"))
+    elif breach_found is False:
+        checks.append(CheckResult("breach", True, "Pas de compromission détectée"))
+
     suggestions: List[str] = []
     if length < min_length:
         suggestions.append(f"Augmenter la longueur à au moins {min_length} caractères")
@@ -361,6 +375,8 @@ def evaluate_password(
         suggestions.append("Éviter les mots de passe trop communs")
     if has_dictionary_word:
         suggestions.append("Éviter les mots du dictionnaire")
+    if breach_found is True:
+        suggestions.append("Changer un mot de passe compromis")
 
     if not suggestions:
         suggestions.append("Bon mot de passe : conserver cette diversité")
@@ -381,6 +397,8 @@ def evaluate_password(
         "repeat_len": repeat_len,
         "is_common": is_common,
         "has_dictionary_word": has_dictionary_word,
+        "breach_checked": breach_found is not None,
+        "is_breached": breach_found is True,
     }
 
     return Result(

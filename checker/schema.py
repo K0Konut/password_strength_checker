@@ -53,6 +53,8 @@ def json_schema() -> dict:
                     "repeat_len": {"type": "integer"},
                     "is_common": {"type": "boolean"},
                     "has_dictionary_word": {"type": "boolean"},
+                    "breach_checked": {"type": "boolean"},
+                    "is_breached": {"type": "boolean"},
                 },
                 "required": [
                     "sequence_found",
@@ -61,6 +63,8 @@ def json_schema() -> dict:
                     "repeat_len",
                     "is_common",
                     "has_dictionary_word",
+                    "breach_checked",
+                    "is_breached",
                 ],
             },
             "result": {
