@@ -76,3 +76,8 @@ def test_profile_lenient_min_length():
 def test_profile_strict_min_length():
     result = evaluate_password("Aa1!Aa1!Aa1!", profile="strict")
     assert "16" in _get_check(result, "length").message
+
+
+def test_policy_nist_min_length():
+    result = evaluate_password("Aa1!Aa1!", policy="nist")
+    assert "8" in _get_check(result, "length").message

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
 from getpass import getpass
 
 from checker import evaluate_password
+from checker.schema import json_schema
 
 
 def _build_explanations(result) -> list[str]:
@@ -63,15 +65,21 @@ def _print_human(result, *, verbose: bool = False, explain: bool = False) -> Non
 
 
 def _result_payload(result, *, index: int | None = None) -> dict:
+    ruleset = (
+        result.profile
+        if result.policy == "default"
+        else f"{result.policy}:{result.profile}"
+    )
     payload = {
         "version": result.ruleset_version,
-        "ruleset": result.profile,
+        "ruleset": ruleset,
         "score": result.score,
         "label": result.label,
         "length": result.length,
         "category_count": result.category_count,
         "min_length": result.min_length,
         "profile": result.profile,
+        "policy": result.policy,
         "checks": [
             {
                 "name": check.name,
@@ -109,6 +117,48 @@ def _write_jsonl(results) -> None:
     for index, result in enumerate(results, start=1):
         payload = _result_payload(result, index=index)
         print(json.dumps(payload, ensure_ascii=False))
+
+
+def _write_csv(results) -> None:
+    fieldnames = [
+        "index",
+        "score",
+        "label",
+        "length",
+        "category_count",
+        "min_length",
+        "profile",
+        "policy",
+        "entropy_estimate",
+        "sequence_found",
+        "keyboard_sequence",
+        "repeated_segment",
+        "repeat_len",
+        "is_common",
+        "has_dictionary_word",
+    ]
+    writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
+    writer.writeheader()
+    for index, result in enumerate(results, start=1):
+        metrics = result.metrics or {}
+        row = {
+            "index": index,
+            "score": result.score,
+            "label": result.label,
+            "length": result.length,
+            "category_count": result.category_count,
+            "min_length": result.min_length,
+            "profile": result.profile,
+            "policy": result.policy,
+            "entropy_estimate": result.entropy_estimate,
+            "sequence_found": metrics.get("sequence_found"),
+            "keyboard_sequence": metrics.get("keyboard_sequence"),
+            "repeated_segment": metrics.get("repeated_segment"),
+            "repeat_len": metrics.get("repeat_len"),
+            "is_common": metrics.get("is_common"),
+            "has_dictionary_word": metrics.get("has_dictionary_word"),
+        }
+        writer.writerow(row)
 
 
 def _render_report(results, *, fmt: str) -> str:
@@ -162,6 +212,12 @@ def main() -> int:
         help="Profil de scoring",
     )
     parser.add_argument(
+        "--policy",
+        choices=("default", "nist"),
+        default="default",
+        help="Politique de scoring",
+    )
+    parser.add_argument(
         "--dictionary-list",
         help="Chemin vers une liste de mots du dictionnaire",
     )
@@ -180,6 +236,16 @@ def main() -> int:
         "--jsonl",
         action="store_true",
         help="Sortie JSON Lines",
+    )
+    output_group.add_argument(
+        "--csv",
+        action="store_true",
+        help="Sortie CSV",
+    )
+    parser.add_argument(
+        "--json-schema",
+        action="store_true",
+        help="Afficher le schéma JSON v2",
     )
     parser.add_argument(
         "--explain",
@@ -203,6 +269,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.json_schema:
+        print(json.dumps(json_schema(), ensure_ascii=False, indent=2))
+        return 0
+
     dictionary_path = Path(args.dictionary_list) if args.dictionary_list else None
     if args.input_file:
         input_path = Path(args.input_file)
@@ -212,6 +282,7 @@ def main() -> int:
                 password,
                 min_length=args.min_length,
                 profile=args.profile,
+                policy=args.policy,
                 use_dictionary=not args.no_dictionary,
                 dictionary_path=dictionary_path,
             )
@@ -225,6 +296,8 @@ def main() -> int:
             print(json.dumps(payload, ensure_ascii=False, indent=2))
         elif args.jsonl:
             _write_jsonl(results)
+        elif args.csv:
+            _write_csv(results)
         else:
             for index, result in enumerate(results, start=1):
                 print(f"Mot de passe {index}: {result.score}/100 - {result.label}")
@@ -247,6 +320,7 @@ def main() -> int:
         password,
         min_length=args.min_length,
         profile=args.profile,
+        policy=args.policy,
         use_dictionary=not args.no_dictionary,
         dictionary_path=dictionary_path,
     )
@@ -255,6 +329,8 @@ def main() -> int:
         _print_json(result)
     elif args.jsonl:
         _write_jsonl([result])
+    elif args.csv:
+        _write_csv([result])
     else:
         _print_human(result, verbose=args.verbose, explain=args.explain)
     if args.report_file:
