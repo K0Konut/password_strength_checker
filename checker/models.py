@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass(frozen=True)
@@ -12,9 +12,23 @@ class CheckResult:
 
 
 @dataclass(frozen=True)
+class ScoreBreakdown:
+    length_score: int
+    diversity_bonus: int
+    penalties: Dict[str, int]
+    capped: bool = False
+    cap: Optional[int] = None
+    cap_reason: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class Result:
     score: int
     label: str
     checks: List[CheckResult]
     suggestions: List[str]
     entropy_estimate: Optional[float] = None
+    length: int = 0
+    category_count: int = 0
+    min_length: int = 12
+    score_breakdown: Optional[ScoreBreakdown] = None
