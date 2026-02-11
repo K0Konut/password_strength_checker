@@ -81,3 +81,13 @@ def test_profile_strict_min_length():
 def test_policy_nist_min_length():
     result = evaluate_password("Aa1!Aa1!", policy="nist")
     assert "8" in _get_check(result, "length").message
+
+
+def test_breach_flag_true():
+    result = evaluate_password("AnyPassword123!", breach_found=True)
+    assert not _get_check(result, "breach").passed
+
+
+def test_breach_flag_false():
+    result = evaluate_password("AnyPassword123!", breach_found=False)
+    assert _get_check(result, "breach").passed

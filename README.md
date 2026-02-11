@@ -18,10 +18,13 @@ Outil Python qui évalue la robustesse d’un mot de passe et renvoie un score, 
 - Sortie JSON v2 enrichie (version, ruleset, métriques)
 - Sortie JSONL pour le mode batch
 - Sortie CSV pour analyse batch
-- Rapport exportable (texte ou markdown)
+- Rapport exportable (texte, markdown ou HTML)
 - Mode batch (fichier de mots de passe)
 - Résumé explicatif optionnel
 - Schéma JSON v2 exportable
+- Générateur de mots de passe forts
+- Benchmark simple sur fichier
+- Vérification optionnelle contre des mots de passe compromis (local ou HIBP)
 - Conseils d’amélioration personnalisés
 - CLI avec saisie masquée par défaut
 
@@ -57,12 +60,19 @@ python main.py --profile strict
 python main.py --policy nist
 python main.py --dictionary-list ./data/dictionary_words.txt
 python main.py --no-dictionary
+python main.py --hibp
+python main.py --breach-list ./data/pwned_sha1.txt
 python main.py --input-file ./data/passwords.txt
 python main.py --jsonl
 python main.py --csv
 python main.py --json-schema
 python main.py --report-file ./rapport.txt
 python main.py --report-format markdown --report-file ./rapport.md
+python main.py --report-format html --report-file ./rapport.html
+python main.py --generate --generate-length 20
+python main.py --generate --generate-count 5 --generate-no-symbol
+python main.py --generate --generate-length 12 --generate-no-upper --generate-no-symbol
+python main.py --benchmark --input-file ./data/passwords.txt
 python main.py --explain
 python main.py --verbose
 python main.py --json
@@ -73,6 +83,9 @@ Notes :
 - En mode batch, la sortie n’affiche pas les mots de passe.
 - La sortie JSON inclut `version` et `ruleset` (profil).
 - Le champ `ruleset` devient `policy:profile` quand une policy est activée.
+- `--hibp` envoie uniquement un préfixe de hash SHA1 (k-anonymity), jamais le mot de passe.
+- Éviter de rediriger la sortie de `--generate` vers un fichier si vous ne souhaitez pas stocker le mot de passe.
+- `--breach-list` attend un fichier contenant des hashes SHA1 (un par ligne).
 
 **Exemple de sortie**
 
