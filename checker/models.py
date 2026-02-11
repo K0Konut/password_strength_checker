@@ -33,5 +33,6 @@ class Result:
     min_length: int = 12
     score_breakdown: Optional[ScoreBreakdown] = None
     profile: str = "standard"
+    policy: str = "default"
     ruleset_version: int = 2
     metrics: Optional[Dict[str, Union[int, bool]]] = None

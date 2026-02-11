@@ -84,6 +84,22 @@ PROFILE_CONFIGS: dict[str, ScoringConfig] = {
     ),
 }
 
+POLICY_CONFIGS: dict[str, ScoringConfig] = {
+    "nist": ScoringConfig(
+        min_length=8,
+        short_cap=50,
+        penalties={
+            "sequence": 12,
+            "keyboard": 12,
+            "pattern": 10,
+            "repetition_minor": 6,
+            "repetition_major": 10,
+            "common": 35,
+            "dictionary": 10,
+        },
+    ),
+}
+
 
 def _length_score(length: int) -> int:
     if length <= 0:
@@ -188,12 +204,14 @@ def evaluate_password(
     *,
     min_length: int | None = None,
     profile: str = "standard",
+    policy: str = "default",
     use_dictionary: bool = True,
     dictionary_path: Path | None = None,
 ) -> Result:
     length = len(password)
-    config = PROFILE_CONFIGS.get(profile, PROFILE_CONFIGS["standard"])
+    policy_name = policy if policy in POLICY_CONFIGS else "default"
     profile_name = profile if profile in PROFILE_CONFIGS else "standard"
+    config = POLICY_CONFIGS.get(policy_name) or PROFILE_CONFIGS[profile_name]
     min_length = max(8, min_length if min_length is not None else config.min_length)
     if dictionary_path is not None and not isinstance(dictionary_path, Path):
         dictionary_path = Path(dictionary_path)
@@ -376,5 +394,6 @@ def evaluate_password(
         min_length=min_length,
         score_breakdown=breakdown,
         profile=profile_name,
+        policy=policy_name,
         metrics=metrics,
     )
