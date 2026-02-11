@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import sys
+import time
 from pathlib import Path
 from getpass import getpass
 
@@ -175,6 +176,20 @@ def _render_report(results, *, fmt: str) -> str:
             if result.suggestions:
                 lines.append(f"- Suggestion prioritaire: {result.suggestions[0]}")
             lines.append("")
+        elif fmt == "html":
+            failed = [check.message for check in result.checks if not check.passed]
+            suggestion = result.suggestions[0] if result.suggestions else ""
+            failures = "<br>".join(failed[:3]) if failed else "Aucune"
+            lines.append(
+                "<tr>"
+                f"<td>{index}</td>"
+                f"<td>{result.score}/100</td>"
+                f"<td>{result.label}</td>"
+                f"<td>{result.length}</td>"
+                f"<td>{failures}</td>"
+                f"<td>{suggestion}</td>"
+                "</tr>"
+            )
         else:
             lines.append(f"Mot de passe {index}")
             lines.append(f"Score: {result.score}/100")
@@ -186,6 +201,41 @@ def _render_report(results, *, fmt: str) -> str:
             if result.suggestions:
                 lines.append(f"Suggestion prioritaire: {result.suggestions[0]}")
             lines.append("")
+    if fmt == "html":
+        rows = "\n".join(lines)
+        return (
+            "<!doctype html>\n"
+            "<html lang=\"fr\">\n"
+            "<head>\n"
+            "  <meta charset=\"utf-8\">\n"
+            "  <title>Rapport Password Strength Checker</title>\n"
+            "  <style>\n"
+            "    body { font-family: Arial, sans-serif; margin: 24px; }\n"
+            "    table { border-collapse: collapse; width: 100%; }\n"
+            "    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n"
+            "    th { background: #f4f4f4; }\n"
+            "  </style>\n"
+            "</head>\n"
+            "<body>\n"
+            "  <h1>Rapport Password Strength Checker</h1>\n"
+            "  <table>\n"
+            "    <thead>\n"
+            "      <tr>\n"
+            "        <th>#</th>\n"
+            "        <th>Score</th>\n"
+            "        <th>Niveau</th>\n"
+            "        <th>Longueur</th>\n"
+            "        <th>Faiblesses</th>\n"
+            "        <th>Suggestion prioritaire</th>\n"
+            "      </tr>\n"
+            "    </thead>\n"
+            "    <tbody>\n"
+            f"{rows}\n"
+            "    </tbody>\n"
+            "  </table>\n"
+            "</body>\n"
+            "</html>\n"
+        )
     return "\n".join(lines).strip() + "\n"
 
 
@@ -199,6 +249,11 @@ def main() -> int:
     group.add_argument(
         "--input-file",
         help="Fichier contenant un mot de passe par ligne",
+    )
+    group.add_argument(
+        "--generate",
+        action="store_true",
+        help="Générer un mot de passe fort",
     )
     parser.add_argument(
         "--min-length",
@@ -218,6 +273,38 @@ def main() -> int:
         help="Politique de scoring",
     )
     parser.add_argument(
+        "--generate-length",
+        type=int,
+        default=16,
+        help="Longueur du mot de passe généré",
+    )
+    parser.add_argument(
+        "--generate-count",
+        type=int,
+        default=1,
+        help="Nombre de mots de passe générés",
+    )
+    parser.add_argument(
+        "--generate-no-lower",
+        action="store_true",
+        help="Désactiver les minuscules pour la génération",
+    )
+    parser.add_argument(
+        "--generate-no-upper",
+        action="store_true",
+        help="Désactiver les majuscules pour la génération",
+    )
+    parser.add_argument(
+        "--generate-no-digit",
+        action="store_true",
+        help="Désactiver les chiffres pour la génération",
+    )
+    parser.add_argument(
+        "--generate-no-symbol",
+        action="store_true",
+        help="Désactiver les symboles pour la génération",
+    )
+    parser.add_argument(
         "--dictionary-list",
         help="Chemin vers une liste de mots du dictionnaire",
     )
@@ -225,6 +312,21 @@ def main() -> int:
         "--no-dictionary",
         action="store_true",
         help="Désactiver la détection des mots du dictionnaire",
+    )
+    parser.add_argument(
+        "--breach-list",
+        help="Fichier de hashes SHA1 de mots de passe compromis",
+    )
+    parser.add_argument(
+        "--hibp",
+        action="store_true",
+        help="Activer la vérification HIBP (k-anonymity)",
+    )
+    parser.add_argument(
+        "--hibp-timeout",
+        type=float,
+        default=5.0,
+        help="Timeout HIBP en secondes",
     )
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument(
@@ -248,6 +350,17 @@ def main() -> int:
         help="Afficher le schéma JSON v2",
     )
     parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Mesurer les performances (requiert --input-file)",
+    )
+    parser.add_argument(
+        "--benchmark-repeats",
+        type=int,
+        default=1,
+        help="Nombre de répétitions pour le benchmark",
+    )
+    parser.add_argument(
         "--explain",
         action="store_true",
         help="Afficher un résumé explicatif",
@@ -263,9 +376,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--report-format",
-        choices=("text", "markdown"),
+        choices=("text", "markdown", "html"),
         default="text",
-        help="Format du rapport (text ou markdown)",
+        help="Format du rapport (text, markdown ou html)",
     )
     args = parser.parse_args()
 
@@ -273,16 +386,97 @@ def main() -> int:
         print(json.dumps(json_schema(), ensure_ascii=False, indent=2))
         return 0
 
+    if args.generate:
+        if args.json or args.jsonl or args.csv or args.report_file:
+            print(
+                "Erreur: --generate ne peut pas être combiné avec --json/--jsonl/--csv/--report-file.",
+                file=sys.stderr,
+            )
+            return 2
+        from checker.generator import generate_passwords
+
+        try:
+            passwords = generate_passwords(
+                length=args.generate_length,
+                count=args.generate_count,
+                use_lower=not args.generate_no_lower,
+                use_upper=not args.generate_no_upper,
+                use_digit=not args.generate_no_digit,
+                use_symbol=not args.generate_no_symbol,
+            )
+        except ValueError as exc:
+            print(f"Erreur: {exc}", file=sys.stderr)
+            return 2
+        for password in passwords:
+            print(password)
+        return 0
+
     dictionary_path = Path(args.dictionary_list) if args.dictionary_list else None
+    breach_list_path = Path(args.breach_list) if args.breach_list else None
+
+    def breach_status(password: str) -> bool | None:
+        any_checked = False
+        any_breached = False
+        if breach_list_path:
+            from checker.breach import check_breach_list
+
+            if breach_list_path.exists():
+                any_checked = True
+                if check_breach_list(password, breach_list_path):
+                    any_breached = True
+            else:
+                print(
+                    f"Warning: fichier breach introuvable ({breach_list_path}).",
+                    file=sys.stderr,
+                )
+        if args.hibp:
+            from checker.breach import check_hibp_k_anonymity
+
+            hibp_checked = False
+            try:
+                hibp_checked = True
+                if check_hibp_k_anonymity(password, timeout=args.hibp_timeout):
+                    any_breached = True
+            except RuntimeError as exc:
+                print(f"Warning: HIBP indisponible ({exc}).", file=sys.stderr)
+            any_checked = any_checked or hibp_checked
+        if any_breached:
+            return True
+        if any_checked:
+            return False
+        return None
     if args.input_file:
         input_path = Path(args.input_file)
         passwords = input_path.read_text(encoding="utf-8").splitlines()
+        if args.benchmark:
+            start = time.perf_counter()
+            for _ in range(max(1, args.benchmark_repeats)):
+                _ = [
+                    evaluate_password(
+                        password,
+                        min_length=args.min_length,
+                        profile=args.profile,
+                        policy=args.policy,
+                        breach_found=breach_status(password),
+                        use_dictionary=not args.no_dictionary,
+                        dictionary_path=dictionary_path,
+                    )
+                    for password in passwords
+                ]
+            elapsed = time.perf_counter() - start
+            total = len(passwords) * max(1, args.benchmark_repeats)
+            rate = total / elapsed if elapsed > 0 else 0
+            print(f"Évaluations: {total}")
+            print(f"Durée: {elapsed:.4f}s")
+            print(f"Débit: {rate:.2f} eval/s")
+            return 0
         results = [
             evaluate_password(
                 password,
                 min_length=args.min_length,
                 profile=args.profile,
                 policy=args.policy,
+                breach_found=breach_status(password),
                 use_dictionary=not args.no_dictionary,
                 dictionary_path=dictionary_path,
             )
@@ -321,6 +515,7 @@ def main() -> int:
         min_length=args.min_length,
         profile=args.profile,
         policy=args.policy,
+        breach_found=breach_status(password),
         use_dictionary=not args.no_dictionary,
         dictionary_path=dictionary_path,
     )
