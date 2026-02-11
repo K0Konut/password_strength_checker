@@ -66,3 +66,13 @@ def test_min_length_override():
 def test_no_dictionary_check():
     result = evaluate_password("Sunshine2024!", use_dictionary=False)
     assert all(check.name != "dictionary" for check in result.checks)
+
+
+def test_profile_lenient_min_length():
+    result = evaluate_password("Aa1!Aa1!Aa1!", profile="lenient")
+    assert "10" in _get_check(result, "length").message
+
+
+def test_profile_strict_min_length():
+    result = evaluate_password("Aa1!Aa1!Aa1!", profile="strict")
+    assert "16" in _get_check(result, "length").message
