@@ -105,6 +105,40 @@ def _print_json(result) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
+def _write_jsonl(results) -> None:
+    for index, result in enumerate(results, start=1):
+        payload = _result_payload(result, index=index)
+        print(json.dumps(payload, ensure_ascii=False))
+
+
+def _render_report(results, *, fmt: str) -> str:
+    lines: list[str] = []
+    for index, result in enumerate(results, start=1):
+        if fmt == "markdown":
+            lines.append(f"## Mot de passe {index}")
+            lines.append(f"- Score: {result.score}/100")
+            lines.append(f"- Niveau: {result.label}")
+            failed = [check.message for check in result.checks if not check.passed]
+            if failed:
+                lines.append("- Faiblesses:")
+                lines.extend(f"- {msg}" for msg in failed[:3])
+            if result.suggestions:
+                lines.append(f"- Suggestion prioritaire: {result.suggestions[0]}")
+            lines.append("")
+        else:
+            lines.append(f"Mot de passe {index}")
+            lines.append(f"Score: {result.score}/100")
+            lines.append(f"Niveau: {result.label}")
+            failed = [check.message for check in result.checks if not check.passed]
+            if failed:
+                lines.append("Faiblesses:")
+                lines.extend(f"- {msg}" for msg in failed[:3])
+            if result.suggestions:
+                lines.append(f"Suggestion prioritaire: {result.suggestions[0]}")
+            lines.append("")
+    return "\n".join(lines).strip() + "\n"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Password Strength Checker")
     group = parser.add_mutually_exclusive_group()
@@ -136,10 +170,16 @@ def main() -> int:
         action="store_true",
         help="Désactiver la détection des mots du dictionnaire",
     )
-    parser.add_argument(
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
         "--json",
         action="store_true",
         help="Sortie JSON",
+    )
+    output_group.add_argument(
+        "--jsonl",
+        action="store_true",
+        help="Sortie JSON Lines",
     )
     parser.add_argument(
         "--explain",
@@ -150,6 +190,16 @@ def main() -> int:
         "--verbose",
         action="store_true",
         help="Afficher le détail du score",
+    )
+    parser.add_argument(
+        "--report-file",
+        help="Écrire un rapport dans un fichier",
+    )
+    parser.add_argument(
+        "--report-format",
+        choices=("text", "markdown"),
+        default="text",
+        help="Format du rapport (text ou markdown)",
     )
     args = parser.parse_args()
 
@@ -173,6 +223,8 @@ def main() -> int:
                 for index, result in enumerate(results, start=1)
             ]
             print(json.dumps(payload, ensure_ascii=False, indent=2))
+        elif args.jsonl:
+            _write_jsonl(results)
         else:
             for index, result in enumerate(results, start=1):
                 print(f"Mot de passe {index}: {result.score}/100 - {result.label}")
@@ -180,6 +232,10 @@ def main() -> int:
                     _print_details(result, verbose=args.verbose, explain=args.explain)
                 if index != len(results):
                     print()
+        if args.report_file:
+            report_path = Path(args.report_file)
+            report = _render_report(results, fmt=args.report_format)
+            report_path.write_text(report, encoding="utf-8")
         return 0 if all(r.label in ("Fort", "Très fort") for r in results) else 1
 
     if args.password is None:
@@ -197,8 +253,14 @@ def main() -> int:
 
     if args.json:
         _print_json(result)
+    elif args.jsonl:
+        _write_jsonl([result])
     else:
         _print_human(result, verbose=args.verbose, explain=args.explain)
+    if args.report_file:
+        report_path = Path(args.report_file)
+        report = _render_report([result], fmt=args.report_format)
+        report_path.write_text(report, encoding="utf-8")
 
     return 0 if result.label in ("Fort", "Très fort") else 1
 
